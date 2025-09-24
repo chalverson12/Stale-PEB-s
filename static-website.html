@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redash Query Results - Static Website</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --light-bg: #f8fafc;
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border: none;
+            box-shadow: var(--card-shadow);
+            border-radius: 0.75rem;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+            padding: 1.5rem;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 600;
+            color: var(--secondary-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, var(--success-color) 0%, #047857 100%);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .status-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #dcfce7;
+            color: var(--success-color);
+        }
+
+        .status-warning {
+            background-color: #fef3c7;
+            color: var(--warning-color);
+        }
+
+        .status-error {
+            background-color: #fee2e2;
+            color: var(--danger-color);
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .loading.show {
+            display: inline-block;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--secondary-color);
+            margin-top: 0.5rem;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .form-control, .form-select {
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+        }
+
+        @media (max-width: 768px) {
+            .table-container {
+                max-height: 400px;
+            }
+            
+            .stats-card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">
+                        <i class="fas fa-chart-line me-3"></i>
+                        Redash Query Results
+                    </h1>
+                    <p class="mb-0 opacity-75">Static website displaying your query data</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <button class="refresh-btn" onclick="fetchData()">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        <span class="loading"><i class="fas fa-spinner fa-spin me-2"></i></span>
+                        Fetch Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Configuration Section -->
+        <div class="config-section">
+            <h5 class="mb-3"><i class="fas fa-cog me-2"></i>Configuration</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="redashUrl" class="form-label">Redash URL</label>
+                    <input type="text" class="form-control" id="redashUrl" 
+                           value="https://redash.zp-int.com" placeholder="https://your-redash.com">
+                </div>
+                <div class="col-md-3">
+                    <label for="queryId" class="form-label">Query ID</label>
+                    <input type="number" class="form-control" id="queryId" 
+                           value="100778" placeholder="123">
+                </div>
+                <div class="col-md-5">
+                    <label for="apiKey" class="form-label">API Key</label>
+                    <input type="password" class="form-control" id="apiKey" 
+                           value="ofytSWp0O5riMpC3ldRrJy0sCndu2H9jYEqkfLG1" placeholder="Your API Key">
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate">
+                </div>
+                <div class="col-md-6">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate">
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Row -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" style="background-color: var(--primary-color);">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="metric-value" id="totalRows">0</div>
+                            <div class="metric-label">Total Records</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" style="background-color: var(--success-color);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="metric-value" id="lastUpdate">--:--</div>
+                            <div class="metric-label">Last Updated</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" id="statusIcon" style="background-color: var(--warning-color);">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="status-badge status-warning" id="statusBadge">Not Connected</div>
+                            <div class="metric-label">Status</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Query Results
+                        </h5>
+                        <small class="text-muted" id="tableSubtitle">
+                            Configure your settings above and click "Fetch Data" to load results
+                        </small>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-primary" id="columnCount">0 columns</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="dataContent">
+                    <div class="alert alert-info m-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Welcome!</strong> This is a static HTML website that connects directly to your Redash API.
+                        <br><br>
+                        <strong>Quick Start:</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>Verify your Redash URL, Query ID, and API Key above</li>
+                            <li>Set your desired date range</li>
+                            <li>Click "Fetch Data" to load your query results</li>
+                        </ol>
+                        <br>
+                        <strong>Note:</strong> Due to browser security (CORS), this may only work if:
+                        <ul class="mb-0 mt-2">
+                            <li>Your Redash instance allows cross-origin requests, OR</li>
+                            <li>You open this file locally and your browser allows it, OR</li>
+                            <li>You serve this file from the same domain as your Redash instance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 mb-4">
+            <small class="text-muted">
+                Static HTML website for Redash Query Results | 
+                No server required - runs entirely in your browser
+            </small>
+        </div>
+    </div>
+
+    <!-- Toast for notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="refreshToast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Data Fetch</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                <!-- Message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+        });
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function formatValue(value, type) {
+            if (value === null || value === undefined) {
+                return '<span class="text-muted">—</span>';
+            }
+            
+            if (type === 'datetime' && typeof value === 'string') {
+                return value.substring(0, 19);
+            } else if (type === 'float') {
+                return typeof value === 'number' ? value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value;
+            } else if (type === 'integer') {
+                return typeof value === 'number' ? value.toLocaleString() : value;
+            } else if (typeof value === 'string' && value.length > 50) {
+                return `<span title="${value}">${value.substring(0, 50)}...</span>`;
+            }
+            
+            return value;
+        }
+
+        function updateStatus(status, message) {
+            const statusIcon = document.getElementById('statusIcon');
+            const statusBadge = document.getElementById('statusBadge');
+            
+            statusBadge.className = 'status-badge';
+            
+            if (status === 'success') {
+                statusIcon.style.backgroundColor = 'var(--success-color)';
+                statusIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+                statusBadge.classList.add('status-success');
+                statusBadge.textContent = 'Connected';
+            } else if (status === 'error') {
+                statusIcon.style.backgroundColor = 'var(--danger-color)';
+                statusIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                statusBadge.classList.add('status-error');
+                statusBadge.textContent = 'Error';
+            } else {
+                statusIcon.style.backgroundColor = 'var(--warning-color)';
+                statusIcon.innerHTML = '<i class="fas fa-question-circle"></i>';
+                statusBadge.classList.add('status-warning');
+                statusBadge.textContent = 'Loading';
+            }
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('refreshToast');
+            const toastBody = toast.querySelector('.toast-body');
+            
+            toastBody.textContent = message;
+            
+            toast.className = 'toast';
+            if (type === 'success') {
+                toast.classList.add('text-bg-success');
+            } else if (type === 'error') {
+                toast.classList.add('text-bg-danger');
+            }
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+
+        function displayData(data) {
+            if (!data || !data.query_result || !data.query_result.data) {
+                document.getElementById('dataContent').innerHTML = `
+                    <div class="alert alert-warning m-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No data found in the response.
+                    </div>
+                `;
+                return;
+            }
+
+            const queryResult = data.query_result.data;
+            const rows = queryResult.rows || [];
+            const columns = queryResult.columns || [];
+
+            // Update stats
+            document.getElementById('totalRows').textContent = rows.length.toLocaleString();
+            document.getElementById('columnCount').textContent = `${columns.length} columns`;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            document.getElementById('tableSubtitle').textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+            if (rows.length === 0) {
+                document.getElementById('dataContent').innerHTML = `
+                    <div class="alert alert-info m-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Query executed successfully but returned no data.
+                    </div>
+                `;
+                return;
+            }
+
+            // Build table
+            let tableHTML = `
+                <div class="table-container">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+            `;
+
+            columns.forEach(column => {
+                const friendlyName = column.friendly_name || column.name;
+                const typeInfo = column.type !== 'string' ? ` <small class="text-muted">(${column.type})</small>` : '';
+                tableHTML += `<th scope="col">${friendlyName}${typeInfo}</th>`;
+            });
+
+            tableHTML += `
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            rows.forEach(row => {
+                tableHTML += '<tr>';
+                columns.forEach(column => {
+                    const value = row[column.name];
+                    tableHTML += `<td>${formatValue(value, column.type)}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('dataContent').innerHTML = tableHTML;
+            updateStatus('success', 'Data loaded successfully');
+        }
+
+        function fetchData() {
+            const button = document.querySelector('.refresh-btn');
+            const loading = document.querySelector('.loading');
+            
+            const redashUrl = document.getElementById('redashUrl').value.trim();
+            const queryId = document.getElementById('queryId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!redashUrl || !queryId || !apiKey) {
+                showToast('Please fill in all required fields (URL, Query ID, API Key)', 'error');
+                return;
+            }
+
+            // Show loading state
+            button.disabled = true;
+            loading.classList.add('show');
+            updateStatus('loading', 'Fetching data...');
+
+            // First, try to refresh the query with parameters
+            const refreshUrl = `${redashUrl}/api/queries/${queryId}/refresh`;
+            const refreshPayload = {
+                parameters: {
+                    p_start_range: startDate,
+                    p_end_range: endDate
+                }
+            };
+
+            fetch(refreshUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Key ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(refreshPayload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(refreshData => {
+                const jobId = refreshData.job && refreshData.job.id;
+                if (jobId) {
+                    // Wait for job completion, then get results
+                    return waitForJobCompletion(redashUrl, apiKey, jobId);
+                } else {
+                    // Try to get existing results
+                    return getQueryResults(redashUrl, apiKey, queryId);
+                }
+            })
+            .catch(error => {
+                console.log('Refresh failed, trying to get existing results:', error);
+                // If refresh fails, try to get existing results
+                return getQueryResults(redashUrl, apiKey, queryId);
+            })
+            .then(data => {
+                if (data) {
+                    displayData(data);
+                    showToast('Data fetched successfully!', 'success');
+                } else {
+                    throw new Error('No data received');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateStatus('error', error.message);
+                showToast(`Error: ${error.message}`, 'error');
+                
+                document.getElementById('dataContent').innerHTML = `
+                    <div class="alert alert-danger m-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Error fetching data:</strong> ${error.message}
+                        <br><br>
+                        <strong>Common issues:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>CORS Error:</strong> Your Redash instance may not allow cross-origin requests</li>
+                            <li><strong>Authentication:</strong> Check your API key is correct and has permissions</li>
+                            <li><strong>Network:</strong> Ensure you can access the Redash URL from your browser</li>
+                            <li><strong>Query ID:</strong> Verify the query ID exists and is accessible</li>
+                        </ul>
+                        <br>
+                        <strong>Solutions:</strong>
+                        <ul class="mb-0">
+                            <li>Use the Flask server version instead (server-side requests avoid CORS)</li>
+                            <li>Serve this HTML file from your Redash domain</li>
+                            <li>Configure your Redash instance to allow CORS</li>
+                        </ul>
+                    </div>
+                `;
+            })
+            .finally(() => {
+                button.disabled = false;
+                loading.classList.remove('show');
+            });
+        }
+
+        function getQueryResults(redashUrl, apiKey, queryId) {
+            const resultsUrl = `${redashUrl}/api/queries/${queryId}/results`;
+            
+            return fetch(resultsUrl, {
+                headers: {
+                    'Authorization': `Key ${apiKey}`,
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            });
+        }
+
+        function waitForJobCompletion(redashUrl, apiKey, jobId, maxAttempts = 10) {
+            let attempts = 0;
+            
+            function checkJob() {
+                return fetch(`${redashUrl}/api/jobs/${jobId}`, {
+                    headers: {
+                        'Authorization': `Key ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(jobData => {
+                    const status = jobData.job && jobData.job.status;
+                    
+                    if (status === 3) { // Completed
+                        return getQueryResults(redashUrl, apiKey, jobData.job.query_id);
+                    } else if (status === 4) { // Failed
+                        throw new Error('Query execution failed');
+                    } else if (attempts < maxAttempts) {
+                        attempts++;
+                        return new Promise(resolve => {
+                            setTimeout(() => resolve(checkJob()), 2000);
+                        });
+                    } else {
+                        throw new Error('Query execution timed out');
+                    }
+                });
+            }
+            
+            return checkJob();
+        }
+    </script>
+</body>
+</html>
