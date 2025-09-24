@@ -6,7 +6,7 @@ import json
 import time
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import Config
 
 # Set up logging
@@ -49,12 +49,17 @@ class RedashClient:
             logger.error(f"Failed to get query info for ID {query_id}: {e}")
             return None
     
-    def refresh_query(self, query_id: int) -> Optional[str]:
+    def refresh_query(self, query_id: int, parameters: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Trigger a query refresh and return the job ID"""
         try:
+            payload = {}
+            if parameters:
+                payload['parameters'] = parameters
+            
             response = requests.post(
                 f"{self.base_url}/api/queries/{query_id}/refresh",
                 headers=self.headers,
+                json=payload if payload else None,
                 timeout=30
             )
             response.raise_for_status()
@@ -116,12 +121,47 @@ class RedashClient:
             logger.error(f"Failed to get query results for ID {query_id}: {e}")
             return None
     
-    def fetch_fresh_results(self, query_id: int) -> Optional[Dict[str, Any]]:
+    def get_dynamic_parameters(self, query_id: int) -> Dict[str, Any]:
+        """Generate dynamic parameters for queries with date ranges"""
+        # Get query info to understand parameters
+        query_info = self.get_query_info(query_id)
+        if not query_info:
+            return {}
+        
+        # Extract parameter information
+        options = query_info.get('options', {})
+        parameters = options.get('parameters', [])
+        
+        dynamic_params = {}
+        
+        # Handle date range parameters
+        for param in parameters:
+            param_name = param.get('name', '')
+            param_type = param.get('type', 'text')
+            
+            if param_type == 'date' or 'date' in param_name.lower():
+                if 'start' in param_name.lower():
+                    # For start date, use 7 days ago
+                    dynamic_params[param_name] = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                elif 'end' in param_name.lower():
+                    # For end date, use today
+                    dynamic_params[param_name] = datetime.now().strftime('%Y-%m-%d')
+        
+        logger.info(f"Generated dynamic parameters: {dynamic_params}")
+        return dynamic_params
+    
+    def fetch_fresh_results(self, query_id: int, custom_parameters: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Fetch fresh query results by triggering a refresh"""
         logger.info(f"Fetching fresh results for query {query_id}")
         
+        # Get parameters
+        if custom_parameters:
+            parameters = custom_parameters
+        else:
+            parameters = self.get_dynamic_parameters(query_id)
+        
         # Trigger query refresh
-        job_id = self.refresh_query(query_id)
+        job_id = self.refresh_query(query_id, parameters)
         if not job_id:
             logger.error("Failed to trigger query refresh")
             return None

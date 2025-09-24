@@ -33,13 +33,19 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Test Redash connection
-echo "🔌 Testing Redash connection..."
-python3 redash_client.py
+# Test system components
+echo "🔌 Testing system components..."
+python3 test_system.py
 
 if [ $? -ne 0 ]; then
-    echo "⚠️  Redash connection test failed. Check your API key and URL."
-    echo "The application will still start, but you may need to fix the configuration."
+    echo "⚠️  Some tests failed. The application will still start."
+    echo "Check the test output above for specific issues."
+    read -p "Continue anyway? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Exiting. Please fix the issues and try again."
+        exit 1
+    fi
 fi
 
 # Setup cron job (optional)
