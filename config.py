@@ -7,7 +7,7 @@ from typing import Optional
 class Config:
     # Redash Configuration
     REDASH_BASE_URL: str = os.getenv('REDASH_BASE_URL', 'https://your-redash-instance.com')
-    REDASH_API_KEY: str = os.getenv('REDASH_API_KEY', 'your-api-key-here')
+    REDASH_API_KEY: str = os.getenv('REDASH_API_KEY', 'ofytSWp0O5riMpC3ldRrJy0sCndu2H9jYEqkfLG1')
     REDASH_QUERY_ID: int = int(os.getenv('REDASH_QUERY_ID', '0'))
     
     # Scheduling Configuration

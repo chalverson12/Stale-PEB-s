@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.SITE_TITLE }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --light-bg: #f8fafc;
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border: none;
+            box-shadow: var(--card-shadow);
+            border-radius: 0.75rem;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+            padding: 1.5rem;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 600;
+            color: var(--secondary-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, var(--success-color) 0%, #047857 100%);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .status-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #dcfce7;
+            color: var(--success-color);
+        }
+
+        .status-warning {
+            background-color: #fef3c7;
+            color: var(--warning-color);
+        }
+
+        .status-error {
+            background-color: #fee2e2;
+            color: var(--danger-color);
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .loading.show {
+            display: inline-block;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--secondary-color);
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .table-container {
+                max-height: 400px;
+            }
+            
+            .stats-card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">
+                        <i class="fas fa-chart-line me-3"></i>
+                        {{ config.SITE_TITLE }}
+                    </h1>
+                    <p class="mb-0 opacity-75">{{ config.SITE_DESCRIPTION }}</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <button class="refresh-btn" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        <span class="loading"><i class="fas fa-spinner fa-spin me-2"></i></span>
+                        Refresh Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Status Row -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" style="background-color: var(--primary-color);">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="metric-value">{{ data.total_rows if data.total_rows is not none else 0 }}</div>
+                            <div class="metric-label">Total Records</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" style="background-color: var(--success-color);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="metric-value" style="font-size: 1.2rem;">
+                                {% if last_update %}
+                                    {{ last_update.strftime('%H:%M') }}
+                                {% else %}
+                                    --:--
+                                {% endif %}
+                            </div>
+                            <div class="metric-label">Last Updated</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon" style="background-color: {{ 'var(--success-color)' if not data.error else 'var(--danger-color)' }};">
+                            <i class="fas fa-{{ 'check-circle' if not data.error else 'exclamation-triangle' }}"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="status-badge {{ 'status-success' if not data.error else 'status-error' }}">
+                                {{ 'Online' if not data.error else 'Error' }}
+                            </div>
+                            <div class="metric-label">Status</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Query Results
+                        </h5>
+                        {% if last_update %}
+                        <small class="text-muted">
+                            Last updated: {{ last_update.strftime('%B %d, %Y at %I:%M %p UTC') }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-primary">{{ data.columns|length }} columns</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if data.error %}
+                <div class="alert alert-danger m-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ data.error }}
+                </div>
+                {% elif data.rows|length == 0 %}
+                <div class="alert alert-info m-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No data available. Try refreshing or check your query configuration.
+                </div>
+                {% else %}
+                <div class="table-container">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                {% for column in data.columns %}
+                                <th scope="col">
+                                    {{ column.friendly_name }}
+                                    {% if column.type != 'string' %}
+                                    <small class="text-muted">({{ column.type }})</small>
+                                    {% endif %}
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data.rows %}
+                            <tr>
+                                {% for column in data.columns %}
+                                <td>
+                                    {% set value = row[column.name] %}
+                                    {% if value is none %}
+                                        <span class="text-muted">—</span>
+                                    {% elif column.type == 'datetime' %}
+                                        {{ value[:19] if value|string|length > 19 else value }}
+                                    {% elif column.type == 'float' or column.type == 'integer' %}
+                                        {% if value|string|length > 10 %}
+                                            <span title="{{ value }}">{{ "{:,.2f}".format(value|float) if column.type == 'float' else "{:,}".format(value|int) }}</span>
+                                        {% else %}
+                                            {{ "{:,.2f}".format(value|float) if column.type == 'float' else "{:,}".format(value|int) }}
+                                        {% endif %}
+                                    {% else %}
+                                        {% if value|string|length > 50 %}
+                                            <span title="{{ value }}">{{ value|string|truncate(50) }}</span>
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 mb-4">
+            <small class="text-muted">
+                Powered by Redash Query #{{ config.REDASH_QUERY_ID }} | 
+                Refreshes daily at {{ config.REFRESH_TIME_PST }} PST
+            </small>
+        </div>
+    </div>
+
+    <!-- Toast for notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="refreshToast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Data Refresh</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                <!-- Message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function refreshData() {
+            const button = document.querySelector('.refresh-btn');
+            const loading = document.querySelector('.loading');
+            const buttonText = button.querySelector('span:not(.loading)');
+            
+            // Show loading state
+            button.disabled = true;
+            loading.classList.add('show');
+            
+            fetch('/api/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Data refreshed successfully!', 'success');
+                    // Reload the page to show new data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.error || 'Failed to refresh data', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Network error occurred', 'error');
+            })
+            .finally(() => {
+                // Hide loading state
+                button.disabled = false;
+                loading.classList.remove('show');
+            });
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('refreshToast');
+            const toastBody = toast.querySelector('.toast-body');
+            const toastHeader = toast.querySelector('.toast-header');
+            
+            toastBody.textContent = message;
+            
+            // Update toast styling based on type
+            toast.className = 'toast';
+            if (type === 'success') {
+                toast.classList.add('text-bg-success');
+            } else if (type === 'error') {
+                toast.classList.add('text-bg-danger');
+            }
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+
+        // Auto-refresh every 5 minutes to check for new data
+        setInterval(() => {
+            fetch('/api/data')
+            .then(response => response.json())
+            .then(data => {
+                // Check if data is newer than current page load
+                const currentUpdate = new Date('{{ last_update.isoformat() if last_update else "" }}');
+                const newUpdate = new Date(data.last_update);
+                
+                if (newUpdate > currentUpdate) {
+                    showToast('New data available. Refreshing...', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Auto-refresh check failed:', error);
+            });
+        }, 300000); // 5 minutes
+    </script>
+</body>
+</html>
